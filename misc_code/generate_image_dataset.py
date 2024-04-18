@@ -4,6 +4,7 @@ import random
 import os
 import numpy as np
 import json
+import tqdm
 
 class DataImage:
     def __init__(self, image, background_color, color):
@@ -14,7 +15,7 @@ class DataImage:
         return DataImage(image,self.backgroung_color,self.color)
 
 class Generator:
-    def __init__(self, word_file, font_dir, out_dir):
+    def __init__(self, word_file, font_dir, out_dir, height = 32):
         if os.path.isfile(word_file):
             self.word_file = word_file
         else:
@@ -33,6 +34,8 @@ class Generator:
             raise FileNotFoundError(f"The directory {font_dir} does not exist.")
         if len(self.fonts)==0:
             raise Exception("Font Directory Empty")
+        
+        self.height = height
 
     def generate(
             self, 
@@ -45,12 +48,13 @@ class Generator:
             blur_radius = 0,
             blur_deviation = 1,
             random_noise_rate = 0.2,
-            noise_level = 1
+            noise_level = 1,
+            height = 32
             ):
         
         labels = {}
         with open(self.word_file,encoding="utf-8") as f:
-            for i,word in enumerate(f):
+            for i,word in tqdm.tqdm(enumerate(f)):
                 word = word.strip()
                 fonts = self.sample_fonts(font_sample_rate)
                 if len(fonts)==0:
@@ -80,6 +84,7 @@ class Generator:
                     if self.doSample(random_noise_rate):
                         image = self.add_noise(image, noise_level)
                     img_path = f"img_{i}_{f}_{font.split('.')[0][-1]}.png"
+                    image.image = image.image.resize((image.image.width * height // image.image.height, height))
                     image.image.save(os.path.join(self.out_dir,"images",img_path))
                     labels[img_path] = word
                 
@@ -162,6 +167,7 @@ if __name__ == "__main__":
     parser.add_argument("--word_file", type=str, help="Path to input data")
     parser.add_argument("--font_dir", type=str, help="Path to fonts")
     parser.add_argument("--out_dir", type=str, help="Path to output directory")
+    parser.add_argument("--height", type=int, default=32, help="Image height")
 
     parser.add_argument("--font_sample_rate", type=float, default= 0.2, help="Subset of Font to pick for each word")
     parser.add_argument("--font_size_start", type=int, default=24, help="Start of font size range")
@@ -180,7 +186,6 @@ if __name__ == "__main__":
     parser.add_argument("--noise_level", type=float, default=1, help="Noise Level")
 
 
-    # parser.add_argument("--weighted",action='store_true',help="Specify weight breakpoints")
     args = parser.parse_args()
     
     g = Generator(args.word_file, args.font_dir, args.out_dir)
@@ -194,7 +199,8 @@ if __name__ == "__main__":
         blur_radius = args.blur_radius,
         blur_deviation = args.blur_deviation,
         random_noise_rate = args.random_noise_rate,
-        noise_level = args.noise_level
+        noise_level = args.noise_level,
+        height= args.height
     )
 
     print("Data Generated Successfully")
